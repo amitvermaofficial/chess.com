@@ -1,0 +1,25 @@
+# Node modules
+node_modules
+*.yaml
+
+# Environment variables
+.env
+.env.*.local
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Optional npm cache directory
+.npm/
+
+
+# IDE specific files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
