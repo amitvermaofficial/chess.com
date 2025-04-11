@@ -21,7 +21,7 @@ npm install
 node app.js
 ```
 
-- Play the game by Opening localhost on the Two windows of your machine.
+- Play the game by Opening localhost on the `two windows` of your `browser` on your machine.
 ```
 localhost:3000
 ```
