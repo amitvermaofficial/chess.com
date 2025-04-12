@@ -5,52 +5,103 @@ const { Chess } = require('chess.js');
 const path = require('path');
 
 const app = express();
-const server = http.createServer(app); // express ke server se http ke server to link kiya then vo http ka server socket.io ko de diya ab isko ye manage karega  
-const io = socket(server); // socket ki saari functionality ab io main aa chuki hai
+const server = http.createServer(app);
+const io = socket(server, {
+    cors: {
+        origin: "*",
+        methods: ["GET", "POST"]
+    }
+});
 
-let chess = new Chess(); // chess.js ki library se chess ka object bana liya
+let chess = new Chess();
 let players = {};
 let currentPlayer = 'w';
 
-app.set('view engine', 'ejs'); // ejs ko view engine ke roop main set kiya
-app.use(express.static(path.join(__dirname, 'public'))); // public folder ko static bana diya jisse hum usme se koi bhi file access kar sakein
-app.use(express.json()); // express ko json format main data bhejne ke liye use kiya
-app.use(express.urlencoded({ extended: true })); // express ko url encoded data bhejne ke liye use kiya
+// Set view engine and static files
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
+app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-
-app.get('/', (req, res) => {
-  res.render('index', { title: 'Chess Game' }); // index.ejs ko render kiya jisme title diya
+// Security middleware
+app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    next();
 });
 
+// Routes
+app.get('/', (req, res) => {
+    res.render('index', { 
+        title: 'Chess Game',
+        env: process.env.NODE_ENV || 'development'
+    });
+});
+
+// Socket.io connection handling
 io.on('connection', (uniquesocket) => {
+    let playerColor = '';
     
     if (!players.white) {
-        players.white = uniquesocket.id; // agar white player nahi hai to usko white player bana do
+        players.white = uniquesocket.id;
         uniquesocket.emit('playerRole', 'w');
+        playerColor = 'White';
     } else if (!players.black) {
-        players.black = uniquesocket.id; // agar black player nahi hai to usko black player bana do
+        players.black = uniquesocket.id;
         uniquesocket.emit('playerRole', 'b');
+        playerColor = 'Black';
     } else {
         uniquesocket.emit('spectatorRole');
+        playerColor = 'Spectator';
     }
 
+    // Notify others that a player has joined
+    io.emit('chat message', {
+        sender: 'System',
+        message: `${playerColor} player has joined the game`,
+        type: 'system'
+    });
 
-    // for disconnection of players
+    // Handle chat messages
+    uniquesocket.on('chat message', (message) => {
+        if (typeof message !== 'string' || message.length > 500) {
+            return;
+        }
+        io.emit('chat message', {
+            sender: playerColor,
+            message: message,
+            type: 'user'
+        });
+    });
+
+    // Handle disconnection
     uniquesocket.on('disconnect', () => {
+        let disconnectedColor = '';
         if (uniquesocket.id === players.white) {
-            delete players.white; // agar white player disconnect hota hai to usko hata do
+            delete players.white;
+            disconnectedColor = 'White';
         } else if (uniquesocket.id === players.black) {
-            delete players.black; // agar black player disconnect hota hai to usko hata do
+            delete players.black;
+            disconnectedColor = 'Black';
+        }
+        
+        if (disconnectedColor) {
+            io.emit('chat message', {
+                sender: 'System',
+                message: `${disconnectedColor} player has left the game`,
+                type: 'system'
+            });
         }
     });
 
-    // validating the moves on 'move' event.
+    // Handle moves
     uniquesocket.on('move', (move) => {
         try {
             if (chess.turn() === 'w' && players.white !== uniquesocket.id) return;
             if (chess.turn() === 'b' && players.black !== uniquesocket.id) return;
 
-            // uniquesocket.move(move); // move ko socket par bhej diya
             let result = chess.move(move);
             if (result) {
                 currentPlayer = chess.turn();  
@@ -60,13 +111,20 @@ io.on('connection', (uniquesocket) => {
                 console.log('Invalid Move : ' + move);
                 uniquesocket.emit('InvalidMove! : ' + move);
             }
-
         } catch (err) {
-            console.log(err.message);
-        };
+            console.error('Move error:', err);
+        }
     });
 });
 
-server.listen(3000, () => {
-  console.log('Server is running on port 3000'); 
+// Error handling middleware
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).send('Something broke!');
+});
+
+// Start server
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
 });

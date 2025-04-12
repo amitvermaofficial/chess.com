@@ -1,10 +1,13 @@
 const socket = io();
 const chess = new Chess();
 const boardElement = document.querySelector('.chessboard');
+const blackCapturedPieces = document.getElementById('black-captured-pieces');
+const whiteCapturedPieces = document.getElementById('white-captured-pieces');
 
 let draggedPiece = null;
 let sourceSquare = null;
-let playerRole = null; 
+let playerRole = null;
+let capturedPieces = { w: [], b: [] };
 
 const renderBoard = () => {
     const board = chess.board();
@@ -73,6 +76,34 @@ const renderBoard = () => {
     } else {
         boardElement.classList.remove('flipped');
     }
+
+    updateCapturedPieces();
+};
+
+const updateCapturedPieces = () => {
+    // Clear previous captured pieces
+    blackCapturedPieces.innerHTML = '';
+    whiteCapturedPieces.innerHTML = '';
+
+    // Sort captured pieces by value (Queen > Rook > Bishop > Knight > Pawn)
+    const pieceValues = { q: 5, r: 4, b: 3, n: 2, p: 1 };
+    capturedPieces.w.sort((a, b) => pieceValues[b.type] - pieceValues[a.type]);
+    capturedPieces.b.sort((a, b) => pieceValues[b.type] - pieceValues[a.type]);
+
+    // Display captured pieces
+    capturedPieces.w.forEach(piece => {
+        const pieceElement = document.createElement('span');
+        pieceElement.className = 'text-2xl';
+        pieceElement.textContent = getPieceUnicode(piece);
+        blackCapturedPieces.appendChild(pieceElement);
+    });
+
+    capturedPieces.b.forEach(piece => {
+        const pieceElement = document.createElement('span');
+        pieceElement.className = 'text-2xl';
+        pieceElement.textContent = getPieceUnicode(piece);
+        whiteCapturedPieces.appendChild(pieceElement);
+    });
 };
 
 const handleMove = (source, target) => {
@@ -81,6 +112,12 @@ const handleMove = (source, target) => {
         to: `${String.fromCharCode(97+target.col)}${8-target.row}`,
         promotion: 'q',
     };
+
+    // Check if a piece is being captured
+    const targetPiece = chess.get(move.to);
+    if (targetPiece) {
+        capturedPieces[targetPiece.color].push(targetPiece);
+    }
 
     socket.emit('move', move);
 };
@@ -120,6 +157,10 @@ socket.on('boardState', (fen) => {
 });
 
 socket.on('move', (move) => {
+    const capturedPiece = chess.get(move.to);
+    if (capturedPiece) {
+        capturedPieces[capturedPiece.color].push(capturedPiece);
+    }
     chess.move(move);
     renderBoard();
 });

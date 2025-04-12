@@ -1,23 +1,24 @@
 {
-  "name": "chess.com",
+  "name": "chess-game",
   "version": "1.0.0",
-  "description": "A clone of Chess.com working on real-time",
+  "description": "Real-time multiplayer chess game with chat",
   "main": "app.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node app.js",
+    "dev": "nodemon app.js"
   },
   "author": "Amit Verma",
   "license": "ISC",
   "dependencies": {
-    "chess.js": "^1.2.0",
-    "ejs": "^3.1.10",
-    "express": "^5.1.0",
-    "http": "^0.0.1-security",
-    "socket.io": "^4.8.1"
+    "chess.js": "^1.0.0-beta.4",
+    "ejs": "^3.1.9",
+    "express": "^4.18.2",
+    "socket.io": "^4.7.2"
   },
   "devDependencies": {
-    "autoprefixer": "^10.4.21",
-    "postcss": "^8.5.3",
-    "tailwindcss": "^3.4.17"
+    "nodemon": "^3.0.2"
+  },
+  "engines": {
+    "node": ">=14.0.0"
   }
 }
